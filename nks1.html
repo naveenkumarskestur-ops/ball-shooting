@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Zombie Survival</title>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #111;
+  color: white;
+  font-family: Arial;
+}
+
+#ui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 18px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="ui">Health: 100 | Score: 0</div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const ui = document.getElementById("ui");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Player
+const player = {
+  x: canvas.width / 2,
+  y: canvas.height / 2,
+  size: 40,
+  color: "cyan",
+  speed: 4,
+  health: 100
+};
+
+// Game Data
+let bullets = [];
+let zombies = [];
+let score = 0;
+
+// Controls
+const keys = {};
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+// Mouse shoot
+canvas.addEventListener("click", shoot);
+
+// Shoot toward mouse
+function shoot(e) {
+  const angle = Math.atan2(
+    e.clientY - player.y,
+    e.clientX - player.x
+  );
+
+  bullets.push({
+    x: player.x,
+    y: player.y,
+    dx: Math.cos(angle) * 8,
+    dy: Math.sin(angle) * 8,
+    radius: 5
+  });
+}
+
+// Spawn Zombies
+function spawnZombie() {
+  const edge = Math.floor(Math.random() * 4);
+  let x, y;
+
+  if (edge === 0) { x = 0; y = Math.random() * canvas.height; }
+  if (edge === 1) { x = canvas.width; y = Math.random() * canvas.height; }
+  if (edge === 2) { x = Math.random() * canvas.width; y = 0; }
+  if (edge === 3) { x = Math.random() * canvas.width; y = canvas.height; }
+
+  zombies.push({
+    x, y,
+    size: 40,
+    speed: 1 + Math.random() * 1.5
+  });
+}
+
+// Distance check
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// Game Loop
+function update() {
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Movement (WASD)
+  if (keys["w"]) player.y -= player.speed;
+  if (keys["s"]) player.y += player.speed;
+  if (keys["a"]) player.x -= player.speed;
+  if (keys["d"]) player.x += player.speed;
+
+  // Draw player
+  ctx.fillStyle = player.color;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.size/2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Bullets
+  bullets.forEach((b, bi) => {
+    b.x += b.dx;
+    b.y += b.dy;
+
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2);
+    ctx.fillStyle = "yellow";
+    ctx.fill();
+
+    if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+      bullets.splice(bi, 1);
+    }
+  });
+
+  // Zombies
+  zombies.forEach((z, zi) => {
+    const angle = Math.atan2(player.y - z.y, player.x - z.x);
+    z.x += Math.cos(angle) * z.speed;
+    z.y += Math.sin(angle) * z.speed;
+
+    ctx.fillStyle = "lime";
+    ctx.fillRect(z.x, z.y, z.size, z.size);
+
+    // Hit player
+    if (distance(player, z) < player.size) {
+      player.health -= 0.3;
+    }
+
+    // Bullet hit
+    bullets.forEach((b, bi) => {
+      if (distance(b, z) < z.size/2) {
+        zombies.splice(zi, 1);
+        bullets.splice(bi, 1);
+        score++;
+      }
+    });
+  });
+
+  // UI
+  ui.innerText = "Health: " + Math.floor(player.health) + " | Score: " + score;
+
+  // Game over
+  if (player.health <= 0) {
+    alert("💀 You Died! Score: " + score);
+    location.reload();
+  }
+
+  requestAnimationFrame(update);
+}
+
+// Spawn zombies every 1 sec
+setInterval(spawnZombie, 1000);
+
+// Start
+update();
+</script>
+
+</body>
+</html>
